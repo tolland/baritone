@@ -27,7 +27,19 @@ archivesBaseName = archivesBaseName + "-fabric"
 unimined.minecraft {
     fabric {
         loader project.fabric_version
+
     }
+    //mods {
+
+
+//        remap(configurations.modRuntimeOnly) {
+//            mixinRemap {
+//                reset()
+//                enableBaseMixin()
+//                enableMixinExtra()
+//            }
+//        }
+//    }
 }
 
 configurations {
@@ -35,6 +47,8 @@ configurations {
     shadowCommon // Don't use shadow from the shadow plugin because we don't want IDEA to index this.
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
+//    modRuntimeOnly
+//    runtimeOnly.extendsFrom modRuntimeOnly
 }
 
 dependencies {
@@ -53,6 +67,8 @@ dependencies {
     //modApi("curse.maven:litematica-308892:4946471")
 
 }
+
+
 
 processResources {
     inputs.property "version", project.version

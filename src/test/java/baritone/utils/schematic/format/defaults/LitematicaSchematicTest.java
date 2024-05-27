@@ -44,6 +44,8 @@ import org.junit.Test;
 import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 
+import static baritone.utils.schematic.format.defaults.LitematicaSchematicRegion.getVolume;
+
 //@RunWith(Parameterized.class)
 public class LitematicaSchematicTest extends TestCase {
 
@@ -100,36 +102,26 @@ public class LitematicaSchematicTest extends TestCase {
             nbt = NbtIo.readCompressed(Files.newInputStream(path), NbtAccounter.unlimitedHeap());
             return new LitematicaSchematic(nbt, false) {
 
-                BlockState[] getBlockList2(ListTag blockStatePalette) {
-
-
-                    BlockState[] blockList = new BlockState[blockStatePalette.size()];
-
-                    for (int i = 0; i < blockStatePalette.size(); i++) {
-                        ResourceLocation resLoc = new ResourceLocation((((CompoundTag) blockStatePalette.get(i)).getString("Name")));
-                    }
-                    return blockList;
+                @Override
+                protected void parseNbtRegion(String regionName) {
+                    this.getSubregions().put(regionName, LitematicaSchematicRegion.createDummy(regionName,
+                            nbt.getCompound("Regions").getCompound(regionName))
+                    );
                 }
 
                 @Override
                 protected void fillInSchematic() {
-                    for (String subReg : getRegions(nbt)) {
-                        System.out.println("fillInSchematic for subregion: " + subReg);
-                        ListTag usedBlockTypes = nbt.getCompound("Regions").getCompound(subReg).getList("BlockStatePalette", 10);
+                    getSubregions().forEach((name, region) -> {
+                        System.out.println("fillInSchematic(start) dummy for subregion: " + name);
 
                         // this requires bootstrapped registry stuff
-                        BlockState[] blockList = getBlockList2(usedBlockTypes);
+                        BlockState[] blockList = region.getBlockList2(region.usedBlockTypes);
 
                         //Block dirt = Blocks.DIRT;
 
-                        int bitsPerBlock = getBitsPerBlock(usedBlockTypes.size());
-                        long regionVolume = getVolume(nbt, subReg);
-                        long[] blockStateArray = getBlockStates(nbt, subReg);
-
-                        LitematicaBitArray bitArray = new LitematicaBitArray(bitsPerBlock, regionVolume, blockStateArray);
-
-                        writeSubregionIntoSchematic(nbt, subReg, blockList, bitArray);
-                    }
+                        // writeSubregionIntoSchematic(nbt, name, blockList, region.bitArray);
+                        System.out.println("fillInSchematic(end) dummy for subregion: " + name);
+                    });
                 }
             }
                     ;
@@ -150,6 +142,8 @@ public class LitematicaSchematicTest extends TestCase {
 
 
         LitematicaSchematic schematic = getSchematicForResource("schematics/litematica/subregion test1.litematic");
+
+        Vec3i getOffsetMinCorner = schematic.getOffsetMinCorner();
 
         // origin is in a region
         assertTrue(schematic.inSchematic(0, 0, 0, null));
@@ -184,15 +178,19 @@ public class LitematicaSchematicTest extends TestCase {
 
         LitematicaSchematic schematic = getSchematicForResource("schematics/litematica/subregion test3.litematic");
 
-        // origin is not in a region
-        assertFalse(schematic.inSchematic(0, 0, 0, null));
-        assertTrue(schematic.inSchematic(-4, 0, -1, null));
+        // origin is in a region
+        assertTrue(schematic.inSchematic(0, 0, 0, null));
+        assertFalse(schematic.inSchematic(0, -1, 0, null));
+        assertFalse(schematic.inSchematic(-4, 0, -1, null));
         assertFalse(schematic.inSchematic(-4, 0, -5, null));
+        assertTrue(schematic.inSchematic(1, 0, 8, null));
+        assertFalse(schematic.inSchematic(1, 1, 8, null));
 //        assertFalse(schematic.inSchematic(0,0,1,null));
 
 //        assertFalse(schematic.inSchematic(0,1,1,null));
 //        assertFalse(schematic.inSchematic(99,1,1,null));
     }
+
     @Test
     public void testGetXTest8() {
 
@@ -200,11 +198,11 @@ public class LitematicaSchematicTest extends TestCase {
         LitematicaSchematic schematic = getSchematicForResource("schematics/litematica/subregion test8.litematic");
 
         // origin is not in a region
-        assertFalse(schematic.inSchematic(0, 0, 0, null));
-        assertFalse(schematic.inSchematic(1, 0, 0, null));
-        assertFalse(schematic.inSchematic(2, 0, 0, null));
-        assertTrue(schematic.inSchematic(3, 0, 0, null));
-        assertTrue(schematic.inSchematic(3, 1, 0, null));
+        assertTrue(schematic.inSchematic(0, 0, 0, null));
+        assertTrue(schematic.inSchematic(1, 0, 0, null));
+        assertTrue(schematic.inSchematic(2, 0, 0, null));
+        assertFalse(schematic.inSchematic(3, 0, 0, null));
+        assertFalse(schematic.inSchematic(3, 1, 0, null));
         assertFalse(schematic.inSchematic(3, 2, 0, null));
         assertFalse(schematic.inSchematic(3, 0, 2, null));
         assertFalse(schematic.inSchematic(3, 1, 2, null));

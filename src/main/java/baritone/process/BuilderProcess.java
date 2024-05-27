@@ -233,10 +233,23 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
             if (LitematicaHelper.hasLoadedSchematic()) {
                 String name = LitematicaHelper.getName(i);
                 try {
+                    // vanilla schematic
                     LitematicaSchematic schematic1 = new LitematicaSchematic(NbtIo.readCompressed(Files.newInputStream(LitematicaHelper.getSchematicFile(i).toPath()), NbtAccounter.unlimitedHeap()), false);
+
+                    System.out.println("origin "+ LitematicaHelper.getOrigin(i));
+
+                    System.out.println("getRotation "+ LitematicaHelper.getRotation(i));
+
+                    System.out.println("getMirror "+ LitematicaHelper.getMirror(i));
+
+
+                    // corrected origin of the min BLockPos
                     Vec3i correctedOrigin = LitematicaHelper.getCorrectedOrigin(schematic1, i);
+
                     ISchematic schematic2 = LitematicaHelper.blackMagicFuckery(schematic1, i);
+
                     schematic2 = applyMapArtAndSelection(origin, (IStaticSchematic) schematic2);
+
                     build(name, schematic2, correctedOrigin);
                 } catch (Exception e) {
                     logDirect("Schematic File could not be loaded.");

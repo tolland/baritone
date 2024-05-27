@@ -18,12 +18,14 @@
 package baritone.utils.schematic.litematica;
 
 import baritone.utils.schematic.format.defaults.LitematicaSchematic;
+import com.mojang.logging.LogUtils;
 import fi.dy.masa.litematica.Litematica;
 import fi.dy.masa.litematica.data.DataManager;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import org.slf4j.Logger;
 
 import java.io.File;
 
@@ -34,6 +36,7 @@ import java.io.File;
  * @since 28.09.2022
  */
 public final class LitematicaHelper {
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     /**
      * @return if Litmatica is installed.
@@ -148,6 +151,7 @@ public final class LitematicaHelper {
                         break;
                 }
         }
+        System.out.println("original origin: " + LitematicaHelper.getOrigin(i) + " correctedOrigin = " + correctedOrigin);
         return correctedOrigin;
     }
 
@@ -187,12 +191,21 @@ public final class LitematicaHelper {
      * @return get it out rotated and mirrored.
      */
     public static LitematicaSchematic blackMagicFuckery(LitematicaSchematic schemIn, int i) {
+
         LitematicaSchematic tempSchem = schemIn.getCopy(LitematicaHelper.getRotation(i).ordinal() % 2 == 1);
+
+        /**
+         * This walks the enclosingSize of the schematic. x, z, then y
+         * starting from the minOffset. i.e. the lowest x,y,z
+         */
         for (int yCounter = 0; yCounter < schemIn.getY(); yCounter++) {
             for (int zCounter = 0; zCounter < schemIn.getZ(); zCounter++) {
                 for (int xCounter = 0; xCounter < schemIn.getX(); xCounter++) {
+                    // Vec3 of current block
                     Vec3i xyzHolder = new Vec3i(xCounter, yCounter, zCounter);
+
                     xyzHolder = LitematicaHelper.doMirroring(xyzHolder, schemIn.getX() - 1, schemIn.getZ() - 1, LitematicaHelper.getMirror(i));
+
                     for (int turns = 0; turns < LitematicaHelper.getRotation(i).ordinal(); turns++) {
                         if ((turns % 2) == 0) {
                             xyzHolder = LitematicaHelper.rotate(xyzHolder, schemIn.getX() - 1, schemIn.getZ() - 1);
@@ -200,11 +213,14 @@ public final class LitematicaHelper {
                             xyzHolder = LitematicaHelper.rotate(xyzHolder, schemIn.getZ() - 1, schemIn.getX() - 1);
                         }
                     }
+
                     BlockState state = schemIn.getDirect(xCounter, yCounter, zCounter);
                     try {
                         state = state.mirror(LitematicaHelper.getMirror(i)).rotate(LitematicaHelper.getRotation(i));
+
                     } catch (NullPointerException e) {
                         //nothing to worry about it's just a hole in the schematic.
+                        LOGGER.trace(e.getMessage());
                     }
                     tempSchem.setDirect(xyzHolder.getX(), xyzHolder.getY(), xyzHolder.getZ(), state);
                 }

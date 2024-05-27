@@ -48,7 +48,15 @@ public class SubstituteSchematic extends AbstractSchematic {
     @Override
     public BlockState desiredState(int x, int y, int z, BlockState current, List<BlockState> approxPlaceable) {
         BlockState desired = schematic.desiredState(x, y, z, current, approxPlaceable);
-        Block desiredBlock = desired.getBlock();
+        Block desiredBlock;
+        try {
+            desiredBlock = desired.getBlock();
+        } catch (NullPointerException e) {
+            System.out.println("Null blockstate at (" + x + ", " + y + ", " + z + ")");
+            e.printStackTrace();
+            return Blocks.AIR.defaultBlockState();
+        }
+
         if (!substitutions.containsKey(desiredBlock)) {
             return desired;
         }
