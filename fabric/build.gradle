@@ -20,6 +20,7 @@ import baritone.gradle.task.ProguardTask
 
 plugins {
     id "com.github.johnrengelman.shadow" version "8.0.0"
+    id "java"
 }
 
 archivesBaseName = archivesBaseName + "-fabric"
@@ -50,6 +51,30 @@ configurations {
     runtimeClasspath.extendsFrom common
 //    modRuntimeOnly
 //    runtimeOnly.extendsFrom modRuntimeOnly
+
+}
+
+configurations {
+    myDownloads
+}
+
+
+dependencies {
+    myDownloads "fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1"
+    myDownloads "curse.maven:litematica-308892:5170070"
+}
+
+task processMyDownloads {
+    configurations.myDownloads
+    doLast {
+        // do work
+        println configurations.myDownloads.join( '\n' )
+        println "here"
+        configurations.myDownloads.each { downloadedFile ->
+            // do something with the File downloadedFile
+            println downloadedFile
+        }
+    }
 }
 
 dependencies {
@@ -71,6 +96,7 @@ dependencies {
     //include "me.shedaniel.cloth.api:cloth-api:${project.cloth_api_version}"
 
 }
+
 
 
 
