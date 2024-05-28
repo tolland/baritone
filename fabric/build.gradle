@@ -27,6 +27,7 @@ archivesBaseName = archivesBaseName + "-fabric"
 unimined.minecraft {
     fabric {
         loader project.fabric_version
+        // loader "0.15.9"
 
     }
     //mods {
@@ -100,8 +101,8 @@ components.java {
 }
 
 task proguard(type: ProguardTask) {
-    url 'https://github.com/Guardsquare/proguard/releases/download/v7.2.1/proguard-7.2.1.zip'
-    extract 'proguard-7.2.1/lib/proguard.jar'
+    url "https://github.com/Guardsquare/proguard/releases/download/v${project.proguard_version}/proguard-${project.proguard_version}.zip"
+    extract "proguard-${project.proguard_version}/lib/proguard.jar"
     compType "fabric"
 }
 
