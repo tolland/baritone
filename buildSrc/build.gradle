@@ -17,6 +17,31 @@
 
 repositories {
     mavenLocal()
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "masa"
+                url = "https://masa.dy.fi/maven"
+            }
+        }
+        filter {
+            includeGroup "fi.dy.masa.malilib"
+        }
+    }
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Curse Maven"
+                url = "https://www.cursemaven.com"
+            }
+        }
+        filter {
+            includeGroup "curse.maven"
+        }
+    }
+
     maven {
         name = 'WagYourMaven'
         url = 'https://maven.wagyourtail.xyz/releases'
@@ -42,4 +67,10 @@ dependencies {
 
     // implementation group: 'xyz.wagyourtail.unimined', name: 'xyz.wagyourtail.unimined.gradle.plugin', version: '1.2.3'
     implementation group: 'xyz.wagyourtail.unimined', name: 'xyz.wagyourtail.unimined.gradle.plugin', version: "1.2.6"
+
+
+    //implementation "maven.modrinth:malilib:0.18.1"
+    implementation "fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1"
+    implementation "curse.maven:litematica-308892:5170070"
+    //include "curse.maven:litematica-308892:5170070"
 }

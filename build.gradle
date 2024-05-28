@@ -88,8 +88,9 @@ allprojects {
         mappings {
             intermediary()
             mojmap()
-            parchment("1.20.2", "2023.10.22")
-            // parchment("1.20.4", "2024.04.14")
+            //yarn(1)
+            //parchment("1.20.2", "2023.10.22")
+            parchment("1.20.4", "2024.04.14")
         }
     }
 
