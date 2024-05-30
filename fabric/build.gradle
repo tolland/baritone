@@ -47,8 +47,8 @@ dependencies {
     }
     include "dev.babbaj:nether-pathfinder:${project.nether_pathfinder_version}"
 
-    //modImplementation("fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1")
-    modImplementation("curse.maven:malilib-303119:5096807")
+    modImplementation("fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1")
+    //modImplementation("curse.maven:malilib-303119:5096807")
     modImplementation("curse.maven:litematica-308892:5170070")
 }
 

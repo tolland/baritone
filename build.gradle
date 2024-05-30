@@ -43,6 +43,17 @@ allprojects {
         exclusiveContent {
             forRepository {
                 maven {
+                    name = "masa"
+                    url = "https://masa.dy.fi/maven"
+                }
+            }
+            filter {
+                includeGroup "fi.dy.masa.malilib"
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
                     name = "Curse Maven"
                     url = "https://www.cursemaven.com"
                 }
