@@ -70,7 +70,7 @@ dependencies {
 
 
     //implementation "maven.modrinth:malilib:0.18.1"
-    implementation "fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1"
-    implementation "curse.maven:litematica-308892:5170070"
+    //implementation "fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1"
+    //implementation "curse.maven:litematica-308892:5170070"
     //include "curse.maven:litematica-308892:5170070"
 }
