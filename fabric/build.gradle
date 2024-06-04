@@ -54,29 +54,6 @@ configurations {
 
 }
 
-configurations {
-    myDownloads
-}
-
-
-dependencies {
-    myDownloads "fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1"
-    myDownloads "curse.maven:litematica-308892:5170070"
-}
-
-task processMyDownloads {
-    configurations.myDownloads
-    doLast {
-        // do work
-        println configurations.myDownloads.join( '\n' )
-        println "here"
-        configurations.myDownloads.each { downloadedFile ->
-            // do something with the File downloadedFile
-            println downloadedFile
-        }
-    }
-}
-
 dependencies {
     // because of multiple sourcesets `common project(":")` doesn't work
     for (sourceSet in rootProject.sourceSets) {
@@ -87,14 +64,9 @@ dependencies {
     }
     include "dev.babbaj:nether-pathfinder:${project.nether_pathfinder_version}"
 
-
-    // API
-
-    //modApi("curse.maven:litematica-308892:4946471")
-
-    //modApi "me.shedaniel.cloth.api:cloth-api:${project.cloth_api_version}"
-    //include "me.shedaniel.cloth.api:cloth-api:${project.cloth_api_version}"
-
+    modImplementation("fi.dy.masa.malilib:malilib-fabric-1.20.4:0.18.1")
+    //modImplementation("curse.maven:malilib-303119:5096807")
+    modImplementation("curse.maven:litematica-308892:5170070")
 }
 
 
