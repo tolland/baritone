@@ -156,6 +156,7 @@ public final class LitematicaHelper {
     }
 
     /**
+     * This seems to output the new coords with the enclosing box after mirroring
      * @param in     the xyz offsets of the block relative to the schematic minimum corner.
      * @param sizeX  size of the schematic in the x-axis direction.
      * @param sizeZ  size of the schematic in the z-axis direction.
@@ -180,7 +181,7 @@ public final class LitematicaHelper {
      * @return the corresponding xyz coordinates after rotation them 90° clockwise.
      */
     public static Vec3i rotate(Vec3i in, int sizeX, int sizeZ) {
-        return new Vec3i(sizeX - (sizeX - sizeZ) - in.getZ(), in.getY(), in.getX());
+        return new Vec3i(sizeZ - in.getZ(), in.getY(), in.getX());
     }
 
     /**

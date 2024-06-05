@@ -116,7 +116,7 @@ allprojects {
             stub.withMappings("official", ["mojmap"]) {
                 c("exp", []) {
                     m("e", "(I)V", ["setCursorPositionVanilla"])
-                    m("e", "(I)", ["getCursorPositionVanilla"])
+                    //m("e", "()I", ["getCursorPositionVanilla"])
                 }
             }
         }
