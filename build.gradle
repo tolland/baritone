@@ -35,6 +35,8 @@ allprojects {
         version = vers.substring(1)
         println "Detected version " + version
     }
+
+    version = "tomh"
     group = rootProject.maven_group
 
     sourceCompatibility = targetCompatibility = JavaVersion.VERSION_17
@@ -113,12 +115,12 @@ allprojects {
             //parchment("1.20.2", "2023.10.22")
             parchment("1.20.4", "2024.04.14")
 
-            stub.withMappings("official", ["mojmap"]) {
-                c("exp", []) {
-                    m("e", "(I)V", ["setCursorPositionVanilla"])
-//                    m("e", "()I", ["getCursorPositionVanilla"])
-                }
-            }
+//            stub.withMappings("official", ["mojmap"]) {
+//                c("exp", []) {
+//                    m("e", "(I)V", ["setCursorPositionVanilla"])
+////                    m("e", "()I", ["getCursorPositionVanilla"])
+//                }
+//            }
         }
     }
 
