@@ -233,11 +233,29 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
             if (LitematicaHelper.hasLoadedSchematic()) {
                 String name = LitematicaHelper.getName(i);
                 try {
+                    // untransformed schematic.
+                    // why?
                     LitematicaSchematic schematic1 = new LitematicaSchematic(NbtIo.readCompressed(Files.newInputStream(LitematicaHelper.getSchematicFile(i).toPath()), NbtAccounter.unlimitedHeap()), false);
+
+                    System.out.println("origin from loaded: "+ LitematicaHelper.getOrigin(i));
+
+                    System.out.println("getRotation from loaded: "+ LitematicaHelper.getRotation(i));
+
+                    System.out.println("getMirror from loaded: "+ LitematicaHelper.getMirror(i));
+
+                    // get origin of "enclosing size" cuboid of schematic.
+                    // using the loaded schematic rotation and mirror settings
                     Vec3i correctedOrigin = LitematicaHelper.getCorrectedOrigin(schematic1, i);
+
+                    System.out.println("correctedOrigin "+ correctedOrigin);
+
+                    // this makes a copy of the schematic with rotation boolean applied. i.e. swapped x and z if necessary
                     ISchematic schematic2 = LitematicaHelper.blackMagicFuckery(schematic1, i);
+
                     schematic2 = applyMapArtAndSelection(origin, (IStaticSchematic) schematic2);
+
                     build(name, schematic2, correctedOrigin);
+
                 } catch (Exception e) {
                     logDirect("Schematic File could not be loaded.");
                     e.printStackTrace();
@@ -276,6 +294,13 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
             return null;
         }
         BlockState state = schematic.desiredState(x - origin.getX(), y - origin.getY(), z - origin.getZ(), current, this.approxPlaceable);
+
+        // log it before crsahing
+        if (state == null) {
+            System.out.println("Schematic contained no block for " + (x - origin.getX()) + " " + (y - origin.getY()) + " " + (z - origin.getZ()));
+            //return null;
+        }
+
         if (state.getBlock() instanceof AirBlock) {
             return null;
         }

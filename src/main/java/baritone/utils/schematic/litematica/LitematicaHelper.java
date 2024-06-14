@@ -18,12 +18,14 @@
 package baritone.utils.schematic.litematica;
 
 import baritone.utils.schematic.format.defaults.LitematicaSchematic;
+import com.mojang.logging.LogUtils;
 import fi.dy.masa.litematica.Litematica;
 import fi.dy.masa.litematica.data.DataManager;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import org.slf4j.Logger;
 
 import java.io.File;
 
@@ -34,6 +36,7 @@ import java.io.File;
  * @since 28.09.2022
  */
 public final class LitematicaHelper {
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     /**
      * @return if Litmatica is installed.
@@ -100,20 +103,26 @@ public final class LitematicaHelper {
      * @return the minimum corner coordinates of the schematic, after the original schematic got rotated and mirrored.
      */
     public static Vec3i getCorrectedOrigin(LitematicaSchematic schematic, int i) {
+        // the origin of the loaded schematic before transformation
         int x = LitematicaHelper.getOrigin(i).getX();
         int y = LitematicaHelper.getOrigin(i).getY();
         int z = LitematicaHelper.getOrigin(i).getZ();
+        // global min coord of the schematic before transformation from nbt
         int mx = schematic.getOffsetMinCorner().getX();
         int my = schematic.getOffsetMinCorner().getY();
         int mz = schematic.getOffsetMinCorner().getZ();
+        // the negative of the max index of each horizontal axis enclosing size
+        // why?
         int sx = (schematic.getX() - 1) * -1;
         int sz = (schematic.getZ() - 1) * -1;
 
         Vec3i correctedOrigin;
+        // get from litematica whether this schematic is mirrored or rotated
+        // by the user in memory
         Mirror mirror = LitematicaHelper.getMirror(i);
         Rotation rotation = LitematicaHelper.getRotation(i);
 
-        //todo there has to be a better way to do this but i cant finde it atm
+        //todo there has to be a better way to do this but i cant find it atm
         switch (mirror) {
             case FRONT_BACK:
             case LEFT_RIGHT:
@@ -187,12 +196,23 @@ public final class LitematicaHelper {
      * @return get it out rotated and mirrored.
      */
     public static LitematicaSchematic blackMagicFuckery(LitematicaSchematic schemIn, int i) {
+
+        // ooh this did a copy, did it do anything good?
+        // no. it just got a new one, by passing nbt object and rotation boolean which swapped the x and z
         LitematicaSchematic tempSchem = schemIn.getCopy(LitematicaHelper.getRotation(i).ordinal() % 2 == 1);
+
+        /**
+         * This walks the enclosingSize of the schematic. x, z, then y
+         * starting from the minOffset. i.e. the lowest x,y,z
+         */
         for (int yCounter = 0; yCounter < schemIn.getY(); yCounter++) {
             for (int zCounter = 0; zCounter < schemIn.getZ(); zCounter++) {
                 for (int xCounter = 0; xCounter < schemIn.getX(); xCounter++) {
+                    // Vec3 of current block
                     Vec3i xyzHolder = new Vec3i(xCounter, yCounter, zCounter);
+
                     xyzHolder = LitematicaHelper.doMirroring(xyzHolder, schemIn.getX() - 1, schemIn.getZ() - 1, LitematicaHelper.getMirror(i));
+
                     for (int turns = 0; turns < LitematicaHelper.getRotation(i).ordinal(); turns++) {
                         if ((turns % 2) == 0) {
                             xyzHolder = LitematicaHelper.rotate(xyzHolder, schemIn.getX() - 1, schemIn.getZ() - 1);
@@ -205,6 +225,7 @@ public final class LitematicaHelper {
                         state = state.mirror(LitematicaHelper.getMirror(i)).rotate(LitematicaHelper.getRotation(i));
                     } catch (NullPointerException e) {
                         //nothing to worry about it's just a hole in the schematic.
+                        LOGGER.trace(e.getMessage());
                     }
                     tempSchem.setDirect(xyzHolder.getX(), xyzHolder.getY(), xyzHolder.getZ(), state);
                 }

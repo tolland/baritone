@@ -30,6 +30,10 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class StaticSchematic extends AbstractSchematic implements IStaticSchematic {
 
+    /**
+     * The block states contained within this schematic
+     * these are indexed by [x][z][y] not as expected x,y,z
+     */
     protected BlockState[][][] states;
 
     @Override

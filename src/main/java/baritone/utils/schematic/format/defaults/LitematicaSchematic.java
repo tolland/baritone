@@ -18,6 +18,7 @@
 package baritone.utils.schematic.format.defaults;
 
 import baritone.utils.schematic.StaticSchematic;
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.Registry;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -28,6 +29,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
@@ -40,6 +42,12 @@ import java.util.Optional;
  * @since 22.09.2022
  */
 public final class LitematicaSchematic extends StaticSchematic {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    /**
+     * the global mimimum corner of the schematic. Not accounting for
+     * transformations.
+     */
     private final Vec3i offsetMinCorner;
     private final CompoundTag nbt;
 
@@ -48,20 +56,30 @@ public final class LitematicaSchematic extends StaticSchematic {
      * @param rotated        if the schematic is rotated by 90°.
      */
     public LitematicaSchematic(CompoundTag nbtTagCompound, boolean rotated) {
+        System.out.println("LOGGER " + LOGGER.isDebugEnabled());
+        LOGGER.info("at start of constructor for LitematicaSchematic");
         this.nbt = nbtTagCompound;
+
         this.offsetMinCorner = new Vec3i(getMinOfSchematic("x"), getMinOfSchematic("y"), getMinOfSchematic("z"));
+
         this.y = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("y"));
 
         if (rotated) {
+            LOGGER.info("rotated true");
             this.x = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("z"));
             this.z = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("x"));
         } else {
+            LOGGER.info("rotated false");
             this.x = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("x"));
             this.z = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("z"));
         }
+        System.out.println("state dims: x:" + this.x + ", y:" + this.y + ", z:" + this.z);
         // for a rotation x/z needs to be large enough to hold the other dimension
-        this.states = new BlockState[Math.max(this.x,this.z)][Math.max(this.x,this.z)][this.y];
+        //this.states = new BlockState[Math.max(this.x,this.z)][Math.max(this.x,this.z)][this.y];
+        this.states = new BlockState[this.x][this.z][this.y];
         fillInSchematic();
+        LOGGER.info("at end of constructor for LitematicaSchematic");
+
     }
 
     /**
@@ -164,22 +182,55 @@ public final class LitematicaSchematic extends StaticSchematic {
 
     @Override
     public boolean inSchematic(int x, int y, int z, BlockState currentState) {
-        return getDirect(x, y, z) != null;
+        LOGGER.trace("inSchematic for x: " + x + " y: " + y + " z: " + z);
+        LOGGER.trace("currentState: " + currentState);
+        // @TODO this could call the ISchematic method
+        return x >= 0 && x < widthX() && y >= 0 && y < heightY() && z >= 0 && z < lengthZ() && getDirect(x, y, z) != null;
     }
 
     /**
      * Subregion don't have to be the same size as the enclosing size of the schematic. If they are smaller we check here if the current block is part of the subregion.
      *
-     * @param x coord of the block relative to the minimum corner.
-     * @param y coord of the block relative to the minimum corner.
-     * @param z coord of the block relative to the minimum corner.
+     * @param x               coord of the block relative to the minimum corner.
+     * @param y               coord of the block relative to the minimum corner.
+     * @param z               coord of the block relative to the minimum corner.
+     * @param offsetSubregion offset from the schematic origin to the minimum corner of the subregion.
      * @return if the current block is part of the subregion.
      */
-    private static boolean inSubregion(CompoundTag nbt, String subReg, int x, int y, int z) {
-        return x >= 0 && y >= 0 && z >= 0 &&
-                x < Math.abs(nbt.getCompound("Regions").getCompound(subReg).getCompound("Size").getInt("x")) &&
-                y < Math.abs(nbt.getCompound("Regions").getCompound(subReg).getCompound("Size").getInt("y")) &&
-                z < Math.abs(nbt.getCompound("Regions").getCompound(subReg).getCompound("Size").getInt("z"));
+    private static boolean inSubregion(CompoundTag nbt, String subReg, int x, int y, int z, Vec3i offsetSubregion, Vec3i offsetMinCorner) {
+        if (!(x >= 0 && y >= 0 && z >= 0)) {
+            return false;
+        }
+
+        CompoundTag region = nbt.getCompound("Regions").getCompound(subReg);
+
+        // this converts x,y,z into nbt space
+        int xPos = region.getCompound("Position").getInt("x") - offsetMinCorner.getX();
+        int yPos = region.getCompound("Position").getInt("y") - offsetMinCorner.getY();
+        int zPos = region.getCompound("Position").getInt("z") - offsetMinCorner.getZ();
+        // convenience variables
+        int xSize = region.getCompound("Size").getInt("x");
+        int ySize = region.getCompound("Size").getInt("y");
+        int zSize = region.getCompound("Size").getInt("z");
+
+        int xMin = (xSize >= 0) ? xPos : xPos + xSize + 1;
+        int yMin = (ySize >= 0) ? yPos : yPos + ySize + 1;
+        int zMin = (zSize >= 0) ? zPos : zPos + zSize + 1;
+
+        int xMax = xMin + Math.abs(xSize);
+        int yMax = yMin + Math.abs(ySize);
+        int zMax = zMin + Math.abs(zSize);
+
+        boolean withinX = xSize != 0 && x >= xMin && x < xMax;
+        boolean withinY = ySize != 0 && y >= yMin && y < yMax;
+        boolean withinZ = zSize != 0 && z >= zMin && z < zMax;
+
+        boolean found = withinX && withinY && withinZ;
+
+        LOGGER.trace("params x,y,z: (" + x + "," + y + "," + z + ") pos: (" + xPos + "," + yPos + "," + zPos + ") size: (" + xSize + "," + ySize + "," + zSize + ") min: (" + xMin + "," + yMin + "," + zMin + ") max: (" + xMax + "," + yMax + "," + zMax + ") found: " + (found ? "true " : "false") + " region: " + subReg);
+
+        return found;
+
     }
 
     /**
@@ -199,6 +250,7 @@ public final class LitematicaSchematic extends StaticSchematic {
      */
     private void fillInSchematic() {
         for (String subReg : getRegions(nbt)) {
+            System.out.println("fillInSchematic(start) for subregion: " + subReg);
             ListTag usedBlockTypes = nbt.getCompound("Regions").getCompound(subReg).getList("BlockStatePalette", 10);
             BlockState[] blockList = getBlockList(usedBlockTypes);
 
@@ -209,6 +261,7 @@ public final class LitematicaSchematic extends StaticSchematic {
             LitematicaBitArray bitArray = new LitematicaBitArray(bitsPerBlock, regionVolume, blockStateArray);
 
             writeSubregionIntoSchematic(nbt, subReg, blockList, bitArray);
+            System.out.println("fillInSchematic(end) for subregion: " + subReg);
         }
     }
 
@@ -224,8 +277,12 @@ public final class LitematicaSchematic extends StaticSchematic {
         for (int y = 0; y < this.y; y++) {
             for (int z = 0; z < this.z; z++) {
                 for (int x = 0; x < this.x; x++) {
-                    if (inSubregion(nbt, subReg, x, y, z)) {
-                        this.states[x - (offsetMinCorner.getX() - offsetSubregion.getX())][z - (offsetMinCorner.getZ() - offsetSubregion.getZ())][y - (offsetMinCorner.getY() - offsetSubregion.getY())] = blockList[bitArray.getAt(index)];
+                    //@TODO this will also fail if there are overlapping
+                    // subregions. I think probably loop each subregion
+                    // rather than the enclosing box
+                    if (inSubregion(nbt, subReg, x, y, z, offsetSubregion, offsetMinCorner)) {
+                        //this.states[x - (offsetMinCorner.getX() - offsetSubregion.getX())][z - (offsetMinCorner.getZ() - offsetSubregion.getZ())][y - (offsetMinCorner.getY() - offsetSubregion.getY())] = blockList[bitArray.getAt(index)];
+                        this.states[x][z][y] = blockList[bitArray.getAt(index)];
                         index++;
                     }
                 }
