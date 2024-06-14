@@ -40,6 +40,9 @@ import java.util.Optional;
  * @since 22.09.2022
  */
 public final class LitematicaSchematic extends StaticSchematic {
+    /**
+     * The minimum corner of the schematic. Before transformation.
+     */
     private final Vec3i offsetMinCorner;
     private final CompoundTag nbt;
 
@@ -53,14 +56,19 @@ public final class LitematicaSchematic extends StaticSchematic {
         this.y = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("y"));
 
         if (rotated) {
+            System.out.println("Rotated");
             this.x = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("z"));
             this.z = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("x"));
         } else {
+            System.out.println("Not Rotated");
             this.x = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("x"));
             this.z = Math.abs(nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("z"));
         }
         // for a rotation x/z needs to be large enough to hold the other dimension
-        this.states = new BlockState[Math.max(this.x,this.z)][Math.max(this.x,this.z)][this.y];
+        //this.states = new BlockState[Math.max(this.x,this.z)][Math.max(this.x,this.z)][this.y];
+        System.out.println("original " + nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("x") + " " + nbt.getCompound("Metadata").getCompound("EnclosingSize").getInt("z"));
+        System.out.println("x: " + this.x + " z: " + this.z);
+        this.states = new BlockState[this.x][this.z][this.y];
         fillInSchematic();
     }
 
@@ -73,6 +81,7 @@ public final class LitematicaSchematic extends StaticSchematic {
 
     /**
      * Gets both ends from a region box for a given axis and returns the lower one.
+     * From the nbt data (so untransformed)
      *
      * @param s axis that should be read.
      * @return the lower coord of the requested axis.
@@ -219,13 +228,22 @@ public final class LitematicaSchematic extends StaticSchematic {
      * @param bitArray  bit array that holds the placement pattern.
      */
     private void writeSubregionIntoSchematic(CompoundTag nbt, String subReg, BlockState[] blockList, LitematicaBitArray bitArray) {
+        // global min of the subregion
         Vec3i offsetSubregion = new Vec3i(getMinOfSubregion(nbt, subReg, "x"), getMinOfSubregion(nbt, subReg, "y"), getMinOfSubregion(nbt, subReg, "z"));
         int index = 0;
+        /**
+         * x,y,z here are the enclosing sizes of the schematic.
+         */
         for (int y = 0; y < this.y; y++) {
             for (int z = 0; z < this.z; z++) {
                 for (int x = 0; x < this.x; x++) {
+                    // this is not easy to discover without a bunch of calcing
                     if (inSubregion(nbt, subReg, x, y, z)) {
-                        this.states[x - (offsetMinCorner.getX() - offsetSubregion.getX())][z - (offsetMinCorner.getZ() - offsetSubregion.getZ())][y - (offsetMinCorner.getY() - offsetSubregion.getY())] = blockList[bitArray.getAt(index)];
+                        int tmpx = x - (offsetMinCorner.getX() - offsetSubregion.getX());
+                        int tmpz = z - (offsetMinCorner.getZ() - offsetSubregion.getZ());
+                        int tmpy = y - (offsetMinCorner.getY() - offsetSubregion.getY());
+                        System.out.println("x: " + x + " y: " + y + " z: " + z + " tmpx: " + tmpx + " tmpy: " + tmpy + " tmpz: " + tmpz + " index: " + index);
+                        this.states[tmpx][tmpz][tmpy] = blockList[bitArray.getAt(index)];
                         index++;
                     }
                 }

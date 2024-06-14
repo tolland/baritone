@@ -35,11 +35,34 @@ allprojects {
         version = vers.substring(1)
         println "Detected version " + version
     }
+    version = "tomh"
     group = rootProject.maven_group
 
     sourceCompatibility = targetCompatibility = JavaVersion.VERSION_17
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "masa"
+                    url = "https://masa.dy.fi/maven"
+                }
+            }
+            filter {
+                includeGroup "fi.dy.masa.malilib"
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "Curse Maven"
+                    url = "https://www.cursemaven.com"
+                }
+            }
+            filter {
+                includeGroup "curse.maven"
+            }
+        }
         maven {
             name = 'spongepowered-repo'
             url = 'https://repo.spongepowered.org/repository/maven-public/'
