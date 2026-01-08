@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+- after making changes check the project builds successfully
+- ./gradlew build
+- run the above command in a new terminal asynchronously
