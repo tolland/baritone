@@ -77,6 +77,12 @@ public interface IBaritone {
     IFarmProcess getFarmProcess();
 
     /**
+     * @return The {@link ICollectProcess} instance
+     * @see ICollectProcess
+     */
+    ICollectProcess getCollectProcess();
+
+    /**
      * @return The {@link ICustomGoalProcess} instance
      * @see ICustomGoalProcess
      */
