@@ -39,7 +39,7 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
     private boolean active;
     private List<Item> itemsToCollect;
     private int range;
-    private BlockPos center;
+    private BlockPos startPosition;
 
     public CollectProcess(Baritone baritone) {
         super(baritone);
@@ -51,18 +51,14 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
     }
 
     @Override
-    public void collect(List<Item> items, int range, BlockPos pos) {
+    public void collect(List<Item> items, int range) {
         if (items == null || items.isEmpty()) {
             logDirect("No items specified to collect");
             return;
         }
 
         this.itemsToCollect = new ArrayList<>(items);
-        if (pos == null) {
-            center = baritone.getPlayerContext().playerFeet();
-        } else {
-            center = pos;
-        }
+        this.startPosition = baritone.getPlayerContext().playerFeet();
         this.range = range;
         active = true;
     }
@@ -94,8 +90,8 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
 
                 // Check if this item is in our collection list
                 if (itemsToCollect.contains(item)) {
-                    // Check if the item is within range
-                    if (range == 0 || BlockPos.containing(entity.position()).distSqr(center) <= range * range) {
+                    // Check if the item is within range (0 = unlimited)
+                    if (range == 0 || BlockPos.containing(entity.position()).distSqr(startPosition) <= range * range) {
                         // +0.1 because of farmland's 0.9375 dummy height
                         goals.add(new GoalBlock(new BetterBlockPos(entity.position().x, entity.position().y + 0.1, entity.position().z)));
                     }

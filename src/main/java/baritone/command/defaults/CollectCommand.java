@@ -18,14 +18,11 @@
 package baritone.command.defaults;
 
 import baritone.api.IBaritone;
-import baritone.api.cache.IWaypoint;
 import baritone.api.command.Command;
 import baritone.api.command.argument.IArgConsumer;
-import baritone.api.command.datatypes.ForWaypoints;
 import baritone.api.command.datatypes.ItemById;
 import baritone.api.command.exception.CommandException;
 import baritone.api.command.exception.CommandInvalidStateException;
-import baritone.api.utils.BetterBlockPos;
 import net.minecraft.world.item.Item;
 
 import java.util.ArrayList;
@@ -45,59 +42,26 @@ public class CollectCommand extends Command {
 
         List<Item> items = new ArrayList<>();
         int range = 0;
-        BetterBlockPos origin = null;
 
-        // Parse items
+        // Parse items until we hit an integer (range) or run out of args
         while (args.hasAny()) {
-            // Check if next arg might be a range (integer)
-            if (args.peekAsOrNull(Integer.class) != null) {
+            // Check if next arg is a range (integer)
+            Integer possibleRange = args.peekAsOrNull(Integer.class);
+            if (possibleRange != null) {
                 range = args.getAs(Integer.class);
                 break;
-            }
-            // Check if it might be a waypoint
-            try {
-                IWaypoint[] waypoints = args.peekDatatypeForOrNull(ForWaypoints.INSTANCE);
-                if (waypoints != null && waypoints.length > 0) {
-                    // This is a waypoint, parse it
-                    waypoints = args.getDatatypeFor(ForWaypoints.INSTANCE);
-                    switch (waypoints.length) {
-                        case 0:
-                            throw new CommandInvalidStateException("No waypoints found");
-                        case 1:
-                            origin = waypoints[0].getLocation();
-                            break;
-                        default:
-                            throw new CommandInvalidStateException("Multiple waypoints were found");
-                    }
-                    break;
-                }
-            } catch (Exception ignored) {
             }
 
             // Otherwise, parse as item
             items.add(args.getDatatypeFor(ItemById.INSTANCE));
         }
 
-        // Check for waypoint after range
-        if (args.hasAny()) {
-            IWaypoint[] waypoints = args.getDatatypeFor(ForWaypoints.INSTANCE);
-            switch (waypoints.length) {
-                case 0:
-                    throw new CommandInvalidStateException("No waypoints found");
-                case 1:
-                    origin = waypoints[0].getLocation();
-                    break;
-                default:
-                    throw new CommandInvalidStateException("Multiple waypoints were found");
-            }
-        }
-
         if (items.isEmpty()) {
             throw new CommandInvalidStateException("No items specified to collect");
         }
 
-        baritone.getCollectProcess().collect(items, range, origin);
-        logDirect("Collecting " + items.size() + " item type(s)");
+        baritone.getCollectProcess().collect(items, range);
+        logDirect("Collecting " + items.size() + " item type(s)" + (range > 0 ? " within " + range + " blocks" : ""));
     }
 
     @Override
@@ -117,13 +81,15 @@ public class CollectCommand extends Command {
                 "",
                 "Usage:",
                 "> collect <item...> - collects all dropped items of the specified type(s).",
-                "> collect <item...> <range> - collect items within range from the starting position.",
-                "> collect <item...> <range> <waypoint> - collect items within range from waypoint.",
+                "> collect <item...> <range> - collect items within range from current position.",
                 "",
                 "Examples:",
                 "> collect minecraft:diamond - collects all dropped diamonds",
                 "> collect minecraft:wheat minecraft:wheat_seeds - collects wheat and seeds",
-                "> collect minecraft:iron_ingot 50 - collects iron ingots within 50 blocks"
+                "> collect minecraft:iron_ingot 50 - collects iron ingots within 50 blocks",
+                "",
+                "Note: Range is calculated from where you are when the command starts.",
+                "To collect from a specific location, navigate there first, then run collect."
         );
     }
 }
