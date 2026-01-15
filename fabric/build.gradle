@@ -89,15 +89,44 @@ task createDist(type: CreateDistTask, dependsOn: proguard) {
 build.finalizedBy(createDist)
 
 publishing {
+//    publications {
+//        mavenFabric(MavenPublication) {
+//            artifactId = rootProject.archives_base_name + "-" + project.name
+//            from components.java
+//        }
+//    }
+
     publications {
-        mavenFabric(MavenPublication) {
-            artifactId = rootProject.archives_base_name + "-" + project.name
+        gpr(MavenPublication) {
+            groupId = "baritone"
+            artifactId = "baritone-api-fabric"
+            version = "1.21.8-develop"
+
+//            // THIS IS THE IMPORTANT PART
+//            artifact(tasks.remapJar) {
+//                builtBy tasks.remapJar
+//            }
+//
             from components.java
+
+            pom {
+                name.set("baritone (patched)")
+                description.set("baritone patched 1.21.8")
+                url.set("https://github.com/tolland/baritone")
+            }
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/tolland/baritone")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
+
+
 }
