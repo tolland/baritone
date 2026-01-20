@@ -77,16 +77,16 @@ components.java {
     }
 }
 
-task proguard(type: ProguardTask) {
-    proguardVersion "7.4.2"
-    compType "fabric"
-}
+//task proguard(type: ProguardTask) {
+//    proguardVersion "7.4.2"
+//    compType "fabric"
+//}
+//
+//task createDist(type: CreateDistTask, dependsOn: proguard) {
+//    compType "fabric"
+//}
 
-task createDist(type: CreateDistTask, dependsOn: proguard) {
-    compType "fabric"
-}
-
-build.finalizedBy(createDist)
+//build.finalizedBy(createDist)
 
 publishing {
 //    publications {
@@ -100,14 +100,19 @@ publishing {
         gpr(MavenPublication) {
             groupId = "baritone"
             artifactId = "baritone-api-fabric"
-            version = "1.21.8-develop"
+            version = "${mod_version}-SNAPSHOT"
 
-//            // THIS IS THE IMPORTANT PART
+            //            // THIS IS THE IMPORTANT PART
 //            artifact(tasks.remapJar) {
 //                builtBy tasks.remapJar
 //            }
 //
-            from components.java
+
+            artifact remapJar
+
+//            artifact(file("build/libs/baritone-api-fabric-${version}.jar")) {
+//                builtBy tasks.remapJar
+//            }
 
             pom {
                 name.set("baritone (patched)")
