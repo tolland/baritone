@@ -14,13 +14,11 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Baritone.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-import baritone.gradle.task.CreateDistTask
-import baritone.gradle.task.ProguardTask
-
 plugins {
     id "com.github.johnrengelman.shadow" version "8.0.0"
 }
+
+apply from: "${rootDir}/gradle/secrets.gradle"
 
 archivesBaseName = archivesBaseName + "-fabric"
 
@@ -99,20 +97,16 @@ publishing {
     publications {
         gpr(MavenPublication) {
             groupId = "baritone"
-            artifactId = "baritone-api-fabric"
+            artifactId = "baritone-fabric"
             version = "${mod_version}-SNAPSHOT"
 
-            //            // THIS IS THE IMPORTANT PART
+            // THIS IS THE IMPORTANT PART
 //            artifact(tasks.remapJar) {
 //                builtBy tasks.remapJar
 //            }
-//
+
 
             artifact remapJar
-
-//            artifact(file("build/libs/baritone-api-fabric-${version}.jar")) {
-//                builtBy tasks.remapJar
-//            }
 
             pom {
                 name.set("baritone (patched)")
@@ -127,8 +121,8 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/tolland/baritone")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
+                username = getSecret("GITHUB_ACTOR")
+                password = getSecret("GITHUB_TOKEN")
             }
         }
     }
