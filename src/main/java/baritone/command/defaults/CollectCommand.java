@@ -21,8 +21,16 @@ import baritone.api.IBaritone;
 import baritone.api.command.Command;
 import baritone.api.command.argument.IArgConsumer;
 import baritone.api.command.datatypes.ItemById;
+import baritone.api.command.datatypes.RelativeCoordinate;
+import baritone.api.command.datatypes.RelativeGoal;
 import baritone.api.command.exception.CommandException;
 import baritone.api.command.exception.CommandInvalidStateException;
+import baritone.api.pathing.goals.Goal;
+import baritone.api.pathing.goals.GoalBlock;
+import baritone.api.pathing.goals.GoalXZ;
+import baritone.api.pathing.goals.GoalYLevel;
+import baritone.api.utils.BetterBlockPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Item;
 
 import java.util.ArrayList;
@@ -60,8 +68,28 @@ public class CollectCommand extends Command {
             throw new CommandInvalidStateException("No items specified to collect");
         }
 
-        baritone.getCollectProcess().collect(items, range);
-        logDirect("Collecting " + items.size() + " item type(s)" + (range > 0 ? " within " + range + " blocks" : ""));
+        BlockPos origin = ctx.playerFeet();
+        if (args.hasAny()) {
+            if (args.peekDatatypeOrNull(RelativeCoordinate.INSTANCE) != null) {
+                args.requireMax(3);
+                Goal goal = args.getDatatypePost(RelativeGoal.INSTANCE, (BetterBlockPos) origin);
+                if (goal instanceof GoalBlock) {
+                    origin = ((GoalBlock) goal).getGoalPos();
+                } else if (goal instanceof GoalXZ) {
+                    origin = new BlockPos(((GoalXZ) goal).getX(), origin.getY(), ((GoalXZ) goal).getZ());
+                } else if (goal instanceof GoalYLevel) {
+                    origin = new BlockPos(origin.getX(), ((GoalYLevel) goal).level, origin.getZ());
+                }
+            } else {
+                args.requireMax(0);
+            }
+        }
+
+        baritone.getCollectProcess().collect(items, range, origin);
+        logDirect(String.format("Collecting %d item type(s) within %s blocks of %s",
+                items.size(),
+                range > 0 ? Integer.toString(range) : "unlimited",
+                origin.toShortString()));
     }
 
     @Override
@@ -82,14 +110,15 @@ public class CollectCommand extends Command {
                 "Usage:",
                 "> collect <item...> - collects all dropped items of the specified type(s).",
                 "> collect <item...> <range> - collect items within range from current position.",
+                "> collect <item...> <range> <x> <y> <z> - collect items within range from specified position.",
                 "",
                 "Examples:",
                 "> collect minecraft:diamond - collects all dropped diamonds",
                 "> collect minecraft:wheat minecraft:wheat_seeds - collects wheat and seeds",
                 "> collect minecraft:iron_ingot 50 - collects iron ingots within 50 blocks",
+                "> collect minecraft:gold_ingot 100 ~ 64 ~ - collects gold ingots within 100 blocks of y=64",
                 "",
-                "Note: Range is calculated from where you are when the command starts.",
-                "To collect from a specific location, navigate there first, then run collect."
+                "Note: If coordinates are provided, range is required to disambiguate."
         );
     }
 }

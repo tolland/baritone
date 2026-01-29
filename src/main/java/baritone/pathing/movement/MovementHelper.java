@@ -416,7 +416,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (block == Blocks.LADDER || (block == Blocks.VINE && Baritone.settings().allowVines.value)) { // TODO reconsider this
             return YES;
         }
-        if (block == Blocks.FARMLAND || block == Blocks.DIRT_PATH || block == Blocks.SOUL_SAND) {
+        if (block == Blocks.FARMLAND || block == Blocks.DIRT_PATH || block == Blocks.SOUL_SAND || block == Blocks.SOUL_SOIL || block == Blocks.MUD) {
             return YES;
         }
         if (block == Blocks.ENDER_CHEST || block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST) {
@@ -504,11 +504,12 @@ public interface MovementHelper extends ActionCosts, Helper {
 
     static boolean canUseFrostWalker(IPlayerContext ctx, BlockPos pos) {
         boolean hasFrostWalker = false;
-        OUTER: for (EquipmentSlot slot : EquipmentSlot.values()) {
+        OUTER:
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemEnchantments itemEnchantments = ctx
-                .player()
-                .getItemBySlot(slot)
-                .getEnchantments();
+                    .player()
+                    .getItemBySlot(slot)
+                    .getEnchantments();
             for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
                 if (enchant.is(Enchantments.FROST_WALKER)) {
                     hasFrostWalker = true;

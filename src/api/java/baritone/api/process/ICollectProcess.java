@@ -17,6 +17,7 @@
 
 package baritone.api.process;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Item;
 
 import java.util.List;
@@ -31,6 +32,16 @@ public interface ICollectProcess extends IBaritoneProcess {
      * @param range The distance from player to collect from (0 = unlimited)
      */
     void collect(List<Item> items, int range);
+
+    /**
+     * Begin to search for dropped items to collect within specified range
+     * from the specified position.
+     *
+     * @param items  The items to collect
+     * @param range  The distance from player to collect from (0 = unlimited)
+     * @param origin The position to collect from
+     */
+    void collect(List<Item> items, int range, BlockPos origin);
 
     /**
      * Begin to search for nearby dropped items to collect.

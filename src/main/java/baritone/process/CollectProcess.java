@@ -18,6 +18,8 @@
 package baritone.process;
 
 import baritone.Baritone;
+import baritone.api.event.events.RenderEvent;
+import baritone.api.event.listener.AbstractGameEventListener;
 import baritone.api.pathing.goals.Goal;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.pathing.goals.GoalComposite;
@@ -26,23 +28,31 @@ import baritone.api.process.PathingCommand;
 import baritone.api.process.PathingCommandType;
 import baritone.api.utils.BetterBlockPos;
 import baritone.utils.BaritoneProcessHelper;
+import baritone.utils.IRenderer;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class CollectProcess extends BaritoneProcessHelper implements ICollectProcess {
+public final class CollectProcess extends BaritoneProcessHelper implements ICollectProcess, AbstractGameEventListener {
 
     private boolean active;
     private List<Item> itemsToCollect;
     private int range;
     private BlockPos startPosition;
+    private final List<Vec3> currentTargetItems = new ArrayList<>();
 
     public CollectProcess(Baritone baritone) {
         super(baritone);
+        baritone.getGameEventHandler().registerEventListener(this);
     }
 
     @Override
@@ -52,19 +62,25 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
 
     @Override
     public void collect(List<Item> items, int range) {
+        collect(items, range, baritone.getPlayerContext().playerFeet());
+    }
+
+    @Override
+    public void collect(List<Item> items, int range, BlockPos origin) {
         if (items == null || items.isEmpty()) {
             logDirect("No items specified to collect");
             return;
         }
 
         this.itemsToCollect = new ArrayList<>(items);
-        this.startPosition = baritone.getPlayerContext().playerFeet();
+        this.startPosition = origin;
         this.range = range;
         active = true;
     }
 
     @Override
     public PathingCommand onTick(boolean calcFailed, boolean isSafeToCancel) {
+        currentTargetItems.clear();
         if (itemsToCollect == null || itemsToCollect.isEmpty()) {
             logDirect("No items to collect");
             onLostControl();
@@ -94,6 +110,7 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
                     if (range == 0 || BlockPos.containing(entity.position()).distSqr(startPosition) <= range * range) {
                         // +0.1 because of farmland's 0.9375 dummy height
                         goals.add(new GoalBlock(new BetterBlockPos(entity.position().x, entity.position().y + 0.1, entity.position().z)));
+                        currentTargetItems.add(entity.position());
                     }
                 }
             }
@@ -112,6 +129,54 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
     public void onLostControl() {
         active = false;
         itemsToCollect = null;
+        currentTargetItems.clear();
+    }
+
+    @Override
+    public void onRenderPass(RenderEvent event) {
+        if (!isActive()) {
+            return;
+        }
+
+        // 1. Draw the collection range as a bounding box
+        if (startPosition != null && range > 0) {
+            drawCollectionRange(event.getModelViewStack(), startPosition, range);
+        }
+
+        // 2. Draw lines to nearby items
+        if (!currentTargetItems.isEmpty()) {
+            drawItemLines(event.getModelViewStack());
+        }
+    }
+
+    private void drawCollectionRange(PoseStack stack, BlockPos origin, int range) {
+        // Create AABB for the collection range
+        AABB rangeBox = new AABB(
+                origin.getX() - range, origin.getY() - range, origin.getZ() - range,
+                origin.getX() + range + 1, origin.getY() + range + 1, origin.getZ() + range + 1
+        );
+
+        // Start rendering with a specific color
+        BufferBuilder bufferBuilder = IRenderer.startLines(Color.CYAN, 0.4f, Baritone.settings().pathRenderLineWidthPixels.value);
+
+        // Draw the bounding box
+        IRenderer.emitAABB(bufferBuilder, stack, rangeBox);
+
+        // End rendering
+        IRenderer.endLines(bufferBuilder, Baritone.settings().renderPathIgnoreDepth.value);
+    }
+
+    private void drawItemLines(PoseStack stack) {
+        Vec3 playerPos = ctx.player().position();
+
+        BufferBuilder bufferBuilder = IRenderer.startLines(Color.GREEN, 0.4f, Baritone.settings().pathRenderLineWidthPixels.value);
+
+        for (Vec3 itemPos : currentTargetItems) {
+            // Draw line from player to each item
+            IRenderer.emitLine(bufferBuilder, stack, playerPos, itemPos);
+        }
+
+        IRenderer.endLines(bufferBuilder, Baritone.settings().renderPathIgnoreDepth.value);
     }
 
     @Override
