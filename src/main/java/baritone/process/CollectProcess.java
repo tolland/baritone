@@ -23,6 +23,7 @@ import baritone.api.event.listener.AbstractGameEventListener;
 import baritone.api.pathing.goals.Goal;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.pathing.goals.GoalComposite;
+import baritone.api.pathing.goals.GoalGetToBlock;
 import baritone.api.process.ICollectProcess;
 import baritone.api.process.PathingCommand;
 import baritone.api.process.PathingCommandType;
@@ -109,7 +110,8 @@ public final class CollectProcess extends BaritoneProcessHelper implements IColl
                     // Check if the item is within range (0 = unlimited)
                     if (range == 0 || BlockPos.containing(entity.position()).distSqr(startPosition) <= range * range) {
                         // +0.1 because of farmland's 0.9375 dummy height
-                        goals.add(new GoalBlock(new BetterBlockPos(entity.position().x, entity.position().y + 0.1, entity.position().z)));
+                        // 0.15 because of mud block is 7/8 block
+                        goals.add(new GoalBlock(new BetterBlockPos(entity.position().x, entity.position().y + 0.15, entity.position().z)));
                         currentTargetItems.add(entity.position());
                     }
                 }
