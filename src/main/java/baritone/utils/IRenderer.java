@@ -27,6 +27,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.platform.DestFactor;
 import com.mojang.blaze3d.platform.SourceFactor;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -83,9 +84,13 @@ public interface IRenderer {
         IRenderer.color[3] = alpha;
     }
 
-    static BufferBuilder startLines(Color color, float alpha) {
+    static BufferBuilder startLines(Color color, float alpha, float lineWidth) {
         glColor(color, alpha);
         return tessellator.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH);
+    }
+
+    static BufferBuilder startLines(Color color, float alpha) {
+        return startLines(color, alpha, 1.0f);
     }
 
     static BufferBuilder startLines(Color color) {
@@ -142,6 +147,10 @@ public interface IRenderer {
         bufferBuilder.addVertex(pose, x2, y2, z2).setColor(color[0], color[1], color[2], color[3]).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
     }
 
+    static void emitAABB(BufferBuilder bufferBuilder, PoseStack stack, AABB aabb) {
+        emitAABB(bufferBuilder, stack, aabb, 1.0f);
+    }
+
     static void emitAABB(BufferBuilder bufferBuilder, PoseStack stack, AABB aabb, float lineWidth) {
         AABB toDraw = aabb.move(-renderManager.renderPosX(), -renderManager.renderPosY(), -renderManager.renderPosZ());
 
@@ -164,6 +173,10 @@ public interface IRenderer {
 
     static void emitAABB(BufferBuilder bufferBuilder, PoseStack stack, AABB aabb, double expand, float lineWidth) {
         emitAABB(bufferBuilder, stack, aabb.inflate(expand, expand, expand), lineWidth);
+    }
+
+    static void emitLine(BufferBuilder bufferBuilder, PoseStack stack, Vec3 start, Vec3 end) {
+        emitLine(bufferBuilder, stack, start, end, 1.0f);
     }
 
     static void emitLine(BufferBuilder bufferBuilder, PoseStack stack, Vec3 start, Vec3 end, float lineWidth) {

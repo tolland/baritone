@@ -992,6 +992,12 @@ public final class Settings {
     public final Setting<Integer> farmMaxScanSize = new Setting<>(256);
 
     /**
+     * When scanning for blocks limit to this offset relative to the player.
+     * If you have layers of crops, this can be used to prevent baritone from digging down to the lower layers.
+     */
+    public final Setting<Integer> farmMaxScanYOffset = new Setting<>(256);
+
+    /**
      * When the cache scan gives less blocks than the maximum threshold (but still above zero), scan the main world too.
      * <p>
      * Only if you have a beefy CPU and automatically mine blocks that are in cache

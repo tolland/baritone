@@ -71,6 +71,8 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
 
     private int range;
     private BlockPos center;
+    private int chunkRadius;
+    private int yThreshold;
 
     private static final List<Item> FARMLAND_PLANTABLE = Arrays.asList(
             Items.BEETROOT_SEEDS,
@@ -111,12 +113,14 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
 
     @Override
     public void farm(int range, BlockPos pos) {
+        logDirect("Starting farm process with range=" + range + ", pos=" + pos);
         if (pos == null) {
             center = baritone.getPlayerContext().playerFeet();
         } else {
             center = pos;
         }
         this.range = range;
+        this.yThreshold = center.getY() - BaritoneAPI.getSettings().farmMaxScanYOffset.value;
         active = true;
         locations = null;
     }
@@ -215,7 +219,10 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
                 }
             }
 
-            Baritone.getExecutor().execute(() -> locations = BaritoneAPI.getProvider().getWorldScanner().scanChunkRadius(ctx, scan, Baritone.settings().farmMaxScanSize.value, 10, 10));
+            // Convert block radius to chunk radius (chunks are 16x16 blocks)
+            // Add 8 to account for being at the edge of a chunk, then divide by 16 and round up
+            chunkRadius = range == 0 ? 10 : Math.max(1, (int) Math.ceil((range + 8) / 16.0));
+            Baritone.getExecutor().execute(() -> locations = BaritoneAPI.getProvider().getWorldScanner().scanChunkRadius(ctx, scan, Baritone.settings().farmMaxScanSize.value, this.yThreshold, chunkRadius));
         }
         if (locations == null) {
             return new PathingCommand(null, PathingCommandType.REQUEST_PAUSE);
@@ -339,9 +346,9 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
         }
 
         if (calcFailed) {
-            logDirect("Farm failed");
+            logDirect("Farm failed: Path calculation failed - unable to find path to farming targets");
             if (Baritone.settings().notificationOnFarmFail.value) {
-                logNotification("Farm failed", true);
+                logNotification("Farm failed: Path calculation failed", true);
             }
             onLostControl();
             return new PathingCommand(null, PathingCommandType.REQUEST_PAUSE);
@@ -380,14 +387,65 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
                 ItemEntity ei = (ItemEntity) entity;
                 if (PICKUP_DROPPED.contains(ei.getItem().getItem())) {
                     // +0.1 because of farmland's 0.9375 dummy height lol
-                    goalz.add(new GoalBlock(new BetterBlockPos(entity.position().x, entity.position().y + 0.1, entity.position().z)));
+                    goalz.add(new GoalBlock(new BetterBlockPos(entity.position().x, entity.position().y + 0.15, entity.position().z)));
                 }
             }
         }
         if (goalz.isEmpty()) {
-            logDirect("Farm failed");
+            StringBuilder reason = new StringBuilder("Farm failed: No actionable goals found");
+            List<String> reasons = new ArrayList<>();
+            if (toBreak.isEmpty()) {
+                reasons.add("no crops ready to harvest");
+            }
+            if (openFarmland.isEmpty() || !baritone.getInventoryBehavior().throwaway(false, this::isPlantable)) {
+                if (openFarmland.isEmpty()) {
+                    reasons.add("no empty farmland to plant");
+                } else {
+                    reasons.add("no plantable seeds/items in inventory");
+                }
+            }
+            if (openSoulsand.isEmpty() || !baritone.getInventoryBehavior().throwaway(false, this::isNetherWart)) {
+                if (openSoulsand.isEmpty()) {
+                    reasons.add("no empty soul sand to plant");
+                } else {
+                    reasons.add("no nether wart in inventory");
+                }
+            }
+            if (openLog.isEmpty() || !baritone.getInventoryBehavior().throwaway(false, this::isCocoa)) {
+                if (openLog.isEmpty()) {
+                    reasons.add("no jungle logs with space for cocoa");
+                } else {
+                    reasons.add("no cocoa beans in inventory");
+                }
+            }
+            if (bonemealable.isEmpty() || !baritone.getInventoryBehavior().throwaway(false, this::isBoneMeal)) {
+                if (bonemealable.isEmpty()) {
+                    reasons.add("no bonemealable crops");
+                } else {
+                    reasons.add("no bone meal in inventory");
+                }
+            }
+            boolean hasPickupItems = false;
+            for (Entity entity : ctx.entities()) {
+                if (entity instanceof ItemEntity && entity.onGround()) {
+                    ItemEntity ei = (ItemEntity) entity;
+                    if (PICKUP_DROPPED.contains(ei.getItem().getItem())) {
+                        hasPickupItems = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasPickupItems) {
+                reasons.add("no dropped items to collect");
+            }
+            if (!reasons.isEmpty()) {
+                reason.append(" (").append(String.join(", ", reasons)).append(")");
+            }
+            String message = reason.toString();
+            logDirect(message);
+
             if (Baritone.settings().notificationOnFarmFail.value) {
-                logNotification("Farm failed", true);
+                logNotification(message, true);
             }
             onLostControl();
             return new PathingCommand(null, PathingCommandType.REQUEST_PAUSE);
