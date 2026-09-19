@@ -22,6 +22,8 @@ plugins {
     id "com.github.johnrengelman.shadow" version "8.1.1"
 }
 
+apply from: "${rootDir}/gradle/secrets.gradle"
+
 base {
     archivesName = archivesName.get() + "-fabric"
 }
@@ -79,27 +81,47 @@ components.java {
     }
 }
 
-task proguard(type: ProguardTask) {
-    proguardVersion "7.9.1"
-    compType "fabric"
-}
-
-task createDist(type: CreateDistTask, dependsOn: proguard) {
-    compType "fabric"
-}
-
-build.finalizedBy(createDist)
+//task proguard(type: ProguardTask) {
+//    proguardVersion "7.9.1"
+//    compType "fabric"
+//}
+//
+//task createDist(type: CreateDistTask, dependsOn: proguard) {
+//    compType "fabric"
+//}
+//build.finalizedBy(createDist)
 
 publishing {
     publications {
-        mavenFabric(MavenPublication) {
-            artifactId = rootProject.archives_base_name + "-" + project.name
-            from components.java
+        gpr(MavenPublication) {
+            groupId = "baritone"
+            artifactId = "baritone-fabric"
+            version = "${mod_version}-SNAPSHOT"
+
+            // THIS IS THE IMPORTANT PART
+//            artifact(tasks.remapJar) {
+//                builtBy tasks.remapJar
+//            }
+
+
+            artifact remapJar
+
+            pom {
+                name.set("baritone (patched)")
+                description.set("baritone patched 1.21.8")
+                url.set("https://github.com/tolland/baritone")
+            }
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/tolland/baritone")
+            credentials {
+                username = getSecret("GITHUB_ACTOR")
+                password = getSecret("GITHUB_TOKEN")
+            }
+        }
     }
 }

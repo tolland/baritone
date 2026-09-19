@@ -49,12 +49,12 @@ public enum FasterWorldScanner implements IWorldScanner {
         if (maxSearchRadius < 0) {
             throw new IllegalArgumentException("chunkRange must be >= 0");
         }
-        return scanChunksInternal(ctx, filter, getChunkRange(ctx.playerFeet().x >> 4, ctx.playerFeet().z >> 4, maxSearchRadius), max);
+        return scanChunksInternal(ctx, filter, getChunkRange(ctx.playerFeet().x >> 4, ctx.playerFeet().z >> 4, maxSearchRadius), max, yLevelThreshold);
     }
 
     @Override
     public List<BlockPos> scanChunk(IPlayerContext ctx, BlockOptionalMetaLookup filter, ChunkPos pos, int max, int yLevelThreshold) {
-        Stream<BlockPos> stream = scanChunkInternal(ctx, filter, pos);
+        Stream<BlockPos> stream = scanChunkInternal(ctx, filter, pos, yLevelThreshold);
         if (max >= 0) {
             stream = stream.limit(max);
         }
@@ -122,11 +122,11 @@ public enum FasterWorldScanner implements IWorldScanner {
         return chunks;
     }
 
-    private List<BlockPos> scanChunksInternal(IPlayerContext ctx, BlockOptionalMetaLookup lookup, List<ChunkPos> chunkPositions, int maxBlocks) {
+    private List<BlockPos> scanChunksInternal(IPlayerContext ctx, BlockOptionalMetaLookup lookup, List<ChunkPos> chunkPositions, int maxBlocks, int yLevelThreshold) {
         assert ctx.world() != null;
         try {
             // p -> scanChunkInternal(ctx, lookup, p)
-            Stream<BlockPos> posStream = chunkPositions.parallelStream().flatMap(p -> scanChunkInternal(ctx, lookup, p));
+            Stream<BlockPos> posStream = chunkPositions.parallelStream().flatMap(p -> scanChunkInternal(ctx, lookup, p, yLevelThreshold));
             if (maxBlocks >= 0) {
                 // WARNING: this can be expensive if maxBlocks is large...
                 // see limit's javadoc
@@ -139,7 +139,7 @@ public enum FasterWorldScanner implements IWorldScanner {
         }
     }
 
-    private Stream<BlockPos> scanChunkInternal(IPlayerContext ctx, BlockOptionalMetaLookup lookup, ChunkPos pos) {
+    private Stream<BlockPos> scanChunkInternal(IPlayerContext ctx, BlockOptionalMetaLookup lookup, ChunkPos pos, int yLevelThreshold) {
         ChunkSource chunkProvider = ctx.world().getChunkSource();
         // if chunk is not loaded, return empty stream
         if (!chunkProvider.hasChunk(pos.x(), pos.z())) {
@@ -151,11 +151,11 @@ public enum FasterWorldScanner implements IWorldScanner {
 
         int playerSectionY = (ctx.playerFeet().y - ctx.world().getMinY()) >> 4;
 
-        return collectChunkSections(lookup, chunkProvider.getChunk(pos.x(), pos.z(), false), chunkX, chunkZ, playerSectionY).stream();
+        return collectChunkSections(lookup, chunkProvider.getChunk(pos.x(), pos.z(), false), chunkX, chunkZ, playerSectionY, yLevelThreshold).stream();
     }
 
 
-    private List<BlockPos> collectChunkSections(BlockOptionalMetaLookup lookup, LevelChunk chunk, long chunkX, long chunkZ, int playerSection) {
+    private List<BlockPos> collectChunkSections(BlockOptionalMetaLookup lookup, LevelChunk chunk, long chunkX, long chunkZ, int playerSection, int yLevelThreshold) {
         // iterate over sections relative to player
         List<BlockPos> blocks = new ArrayList<>();
         int chunkY = chunk.getMinY();
@@ -163,18 +163,19 @@ public enum FasterWorldScanner implements IWorldScanner {
         int l = sections.length;
         int i = playerSection - 1;
         int j = playerSection;
+        boolean foundWithinThreshold = false;
         for (; i >= 0 || j < l; ++j, --i) {
-            if (j < l) {
-                visitSection(lookup, sections[j], blocks, chunkX, chunkY + j * 16, chunkZ);
+            if (j < l && ((chunkY + (j * 16) + 15) >= yLevelThreshold)) {
+                visitSection(lookup, sections[j], blocks, chunkX, chunkY + j * 16, chunkZ, yLevelThreshold);
             }
-            if (i >= 0) {
-                visitSection(lookup, sections[i], blocks, chunkX, chunkY + i * 16, chunkZ);
+            if (i >= 0 && ((chunkY + (i * 16) + 15) >= yLevelThreshold)) {
+                visitSection(lookup, sections[i], blocks, chunkX, chunkY + i * 16, chunkZ, yLevelThreshold);
             }
         }
         return blocks;
     }
 
-    private void visitSection(BlockOptionalMetaLookup lookup, LevelChunkSection section, List<BlockPos> blocks, long chunkX, int sectionY, long chunkZ) {
+    private void visitSection(BlockOptionalMetaLookup lookup, LevelChunkSection section, List<BlockPos> blocks, long chunkX, int sectionY, long chunkZ, int yLevelThreshold) {
         if (section == null || section.hasOnlyAir()) {
             return;
         }
@@ -190,107 +191,115 @@ public enum FasterWorldScanner implements IWorldScanner {
         if (palette instanceof SingleValuePalette) {
             // single value palette doesn't have any data
             if (lookup.has(palette.valueFor(0))) {
-                // TODO this is 4k hits, maybe don't return all of them?
-                for (int x = 0; x < 16; ++x) {
-                    for (int y = 0; y < 16; ++y) {
-                        for (int z = 0; z < 16; ++z) {
-                            blocks.add(new BlockPos(
-                                (int) chunkX + x,
-                                sectionY + y,
-                                (int) chunkZ + z
-                            ));
+                // Only include y levels within this section that are >= yLevelThreshold
+                int yStart = Math.max(0, yLevelThreshold - sectionY);
+                if (yStart < 16) {
+                    // TODO this is up to 4k hits for the section slice
+                    for (int x = 0; x < 16; ++x) {
+                        for (int y = yStart; y < 16; ++y) {
+                            for (int z = 0; z < 16; ++z) {
+                                blocks.add(new BlockPos(
+                                        (int) chunkX + x,
+                                        sectionY + y,
+                                        (int) chunkZ + z
+                                ));
+                            }
                         }
                     }
                 }
             }
-            return;
-        }
+                return;
+            }
 
-        boolean[] isInFilter = getIncludedFilterIndices(lookup, palette);
-        if (isInFilter.length == 0) {
-            return;
-        }
+            boolean[] isInFilter = getIncludedFilterIndices(lookup, palette);
+            if (isInFilter.length == 0) {
+                return;
+            }
 
-        BitStorage array = ((IPalettedContainer<BlockState>) section.getStates()).getStorage();
-        long[] longArray = array.getRaw();
-        int arraySize = array.getSize();
-        int bitsPerEntry = array.getBits();
-        long maxEntryValue = (1L << bitsPerEntry) - 1L;
+            BitStorage array = ((IPalettedContainer<BlockState>) section.getStates()).getStorage();
+            long[] longArray = array.getRaw();
+            int arraySize = array.getSize();
+            int bitsPerEntry = array.getBits();
+            long maxEntryValue = (1L << bitsPerEntry) - 1L;
 
-        for (int i = 0, idx = 0; i < longArray.length && idx < arraySize; ++i) {
-            long l = longArray[i];
-            for (int offset = 0; offset <= (64 - bitsPerEntry) && idx < arraySize; offset += bitsPerEntry, ++idx) {
-                int value = (int) ((l >> offset) & maxEntryValue);
-                if (isInFilter[value]) {
-                    //noinspection DuplicateExpressions
-                    blocks.add(new BlockPos(
-                        (int) chunkX + ((idx & 255) & 15),
-                        sectionY + (idx >> 8),
-                        (int) chunkZ + ((idx & 255) >> 4)
-                    ));
+            for (int i = 0, idx = 0; i < longArray.length && idx < arraySize; ++i) {
+                long l = longArray[i];
+                for (int offset = 0; offset <= (64 - bitsPerEntry) && idx < arraySize; offset += bitsPerEntry, ++idx) {
+                    int value = (int) ((l >> offset) & maxEntryValue);
+                    if (isInFilter[value]) {
+                    int blockLocalY = (idx >> 8);
+                    int blockY = sectionY + blockLocalY;
+                    if (blockY >= yLevelThreshold) {
+                        //noinspection DuplicateExpressions
+                        blocks.add(new BlockPos(
+                                (int) chunkX + ((idx & 255) & 15),
+                            blockY,
+                                (int) chunkZ + ((idx & 255) >> 4)
+                        ));
+                    }
                 }
             }
         }
     }
 
-    private boolean[] getIncludedFilterIndices(BlockOptionalMetaLookup lookup, Palette<BlockState> palette) {
-        boolean commonBlockFound = false;
-        BlockState[] paletteMap = getPalette(palette);
+        private boolean[] getIncludedFilterIndices (BlockOptionalMetaLookup lookup, Palette < BlockState > palette){
+            boolean commonBlockFound = false;
+            BlockState[] paletteMap = getPalette(palette);
 
-        if (paletteMap == PALETTE_REGISTRY_SENTINEL) {
-            return getIncludedFilterIndicesFromRegistry(lookup);
-        }
-
-        int size = paletteMap.length;
-
-        boolean[] isInFilter = new boolean[size];
-
-        for (int i = 0; i < size; i++) {
-            BlockState state = paletteMap[i];
-            if (lookup.has(state)) {
-                isInFilter[i] = true;
-                commonBlockFound = true;
-            } else {
-                isInFilter[i] = false;
+            if (paletteMap == PALETTE_REGISTRY_SENTINEL) {
+                return getIncludedFilterIndicesFromRegistry(lookup);
             }
-        }
 
-        if (!commonBlockFound) {
-            return new boolean[0];
-        }
-        return isInFilter;
-    }
+            int size = paletteMap.length;
 
-    private boolean[] getIncludedFilterIndicesFromRegistry(BlockOptionalMetaLookup lookup) {
-        boolean[] isInFilter = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
+            boolean[] isInFilter = new boolean[size];
 
-        for (BlockOptionalMeta bom : lookup.blocks()) {
-            for (BlockState state : bom.getAllBlockStates()) {
-                isInFilter[Block.BLOCK_STATE_REGISTRY.getId(state)] = true;
-            }
-        }
-
-        return isInFilter;
-    }
-
-    /**
-     * cheats to get the actual map of id -> blockstate from the various palette implementations
-     */
-    private static BlockState[] getPalette(Palette<BlockState> palette) {
-        if (palette instanceof GlobalPalette) {
-            // copying the entire registry is not nice so we treat it as a special case
-            return PALETTE_REGISTRY_SENTINEL;
-        } else {
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            palette.write(buf, Block.BLOCK_STATE_REGISTRY);
-            int size = buf.readVarInt();
-            BlockState[] states = new BlockState[size];
             for (int i = 0; i < size; i++) {
-                BlockState state = Block.BLOCK_STATE_REGISTRY.byId(buf.readVarInt());
-                assert state != null;
-                states[i] = state;
+                BlockState state = paletteMap[i];
+                if (lookup.has(state)) {
+                    isInFilter[i] = true;
+                    commonBlockFound = true;
+                } else {
+                    isInFilter[i] = false;
+                }
             }
-            return states;
+
+            if (!commonBlockFound) {
+                return new boolean[0];
+            }
+            return isInFilter;
+        }
+
+        private boolean[] getIncludedFilterIndicesFromRegistry (BlockOptionalMetaLookup lookup){
+            boolean[] isInFilter = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
+
+            for (BlockOptionalMeta bom : lookup.blocks()) {
+                for (BlockState state : bom.getAllBlockStates()) {
+                    isInFilter[Block.BLOCK_STATE_REGISTRY.getId(state)] = true;
+                }
+            }
+
+            return isInFilter;
+        }
+
+        /**
+         * cheats to get the actual map of id -> blockstate from the various palette implementations
+         */
+        private static BlockState[] getPalette (Palette < BlockState > palette) {
+            if (palette instanceof GlobalPalette) {
+                // copying the entire registry is not nice so we treat it as a special case
+                return PALETTE_REGISTRY_SENTINEL;
+            } else {
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                palette.write(buf, Block.BLOCK_STATE_REGISTRY);
+                int size = buf.readVarInt();
+                BlockState[] states = new BlockState[size];
+                for (int i = 0; i < size; i++) {
+                    BlockState state = Block.BLOCK_STATE_REGISTRY.byId(buf.readVarInt());
+                    assert state != null;
+                    states[i] = state;
+                }
+                return states;
+            }
         }
     }
-}
