@@ -93,7 +93,7 @@ components.java {
 //build.finalizedBy(createDist)
 
 publishing {
-//    publications {
+    publications {
         gpr(MavenPublication) {
             groupId = "baritone"
             artifactId = "baritone-fabric"
@@ -112,8 +112,8 @@ publishing {
                 description.set("baritone patched 1.21.8")
                 url.set("https://github.com/tolland/baritone")
             }
-//        }
-//    }
+        }
+    }
 
     repositories {
         maven {
