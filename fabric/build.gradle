@@ -19,12 +19,14 @@ import baritone.gradle.task.CreateDistTask
 import baritone.gradle.task.ProguardTask
 
 plugins {
-    id "com.github.johnrengelman.shadow" version "8.0.0"
+    id "com.github.johnrengelman.shadow" version "8.1.1"
 }
 
 apply from: "${rootDir}/gradle/secrets.gradle"
 
-archivesBaseName = archivesBaseName + "-fabric"
+base {
+    archivesName = archivesName.get() + "-fabric"
+}
 
 unimined.minecraft {
     fabric {
@@ -92,13 +94,6 @@ components.java {
 
 publishing {
 //    publications {
-//        mavenFabric(MavenPublication) {
-//            artifactId = rootProject.archives_base_name + "-" + project.name
-//            from components.java
-//        }
-//    }
-
-    publications {
         gpr(MavenPublication) {
             groupId = "baritone"
             artifactId = "baritone-fabric"
@@ -117,8 +112,8 @@ publishing {
                 description.set("baritone patched 1.21.8")
                 url.set("https://github.com/tolland/baritone")
             }
-        }
-    }
+//        }
+//    }
 
     repositories {
         maven {
